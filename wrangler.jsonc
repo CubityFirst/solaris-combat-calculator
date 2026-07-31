@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "solaris-combat-calculator",
+  "main": "worker/index.ts",
+  "compatibility_date": "2025-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Single page app: unknown paths fall back to index.html.
+    "not_found_handling": "single-page-application",
+    // Let the Worker see every request so it can attach security headers.
+    "run_worker_first": true
+  },
+  "routes": [
+    {
+      "pattern": "combat.solaris.cubityfir.st",
+      "custom_domain": true
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

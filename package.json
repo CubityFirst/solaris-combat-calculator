@@ -1,0 +1,34 @@
+{
+  "name": "solaris-combat-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "check": "vue-tsc --noEmit && tsc -p tsconfig.worker.json",
+    "deploy": "npm run build && npx wrangler deploy",
+    "worker:dev": "npm run build && npx wrangler dev"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "6.7.2",
+    "bootstrap": "5.3.8",
+    "vue": "3.5.35"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20251001.0",
+    "@types/node": "24.6.2",
+    "@vitejs/plugin-vue": "6.0.7",
+    "@vue/test-utils": "^2.4.6",
+    "jsdom": "^27.0.0",
+    "sass": "1.93.2",
+    "typescript": "5.9.3",
+    "vite": "7.1.9",
+    "vitest": "3.2.4",
+    "vue-tsc": "3.3.5",
+    "wrangler": "4.42.0"
+  }
+}

@@ -1,0 +1,88 @@
+// Solaris look-and-feel, rebuilt on stock Bootstrap.
+//
+// The game client itself ships a commercial Envato template ("HUD" by SeanTheme)
+// for its dark Bootstrap theme. That file is NOT redistributable under the
+// project's GPL, so it is not copied here. Instead, Bootstrap is recompiled from
+// its own Sass source with the same palette, typeface and base font size, which
+// reproduces the appearance without redistributing licensed CSS.
+
+// --- Palette (matches the values the game client renders with) --------------
+$blue: #4e9cff;
+$indigo: #bba4ff;
+$purple: #de8cff;
+$pink: #f34fa0;
+$red: #ff6060;
+$orange: #ff9f0c;
+$yellow: #f9e80d;
+$green: #1ecc33;
+$teal: #3cd2a5;
+$cyan: #30beff;
+
+$primary: #4e9cff;
+$secondary: #798e98;
+$success: #3cd2a5;
+$info: #30beff;
+$warning: #ff9f0c;
+$danger: #ff6060;
+$light: #c0cacf;
+$dark: #35434a;
+
+$gray-100: #c0cacf;
+$gray-200: #a8b6bc;
+$gray-300: #90a2aa;
+$gray-400: #798e98;
+$gray-500: #617a86;
+$gray-600: #526872;
+$gray-700: #44555e;
+$gray-800: #35434a;
+$gray-900: #273136;
+
+// --- Typography -------------------------------------------------------------
+$font-family-base: "Chakra Petch", sans-serif;
+$font-size-base: 0.875rem;
+$body-color: rgba(255, 255, 255, 0.75);
+$body-bg: #273136;
+
+// --- Dark mode (the only mode this app runs in) -----------------------------
+$body-color-dark: rgba(255, 255, 255, 0.75);
+$body-bg-dark: #273136;
+$body-secondary-color-dark: rgba(255, 255, 255, 0.5);
+$body-secondary-bg-dark: #35434a;
+$body-tertiary-color-dark: rgba(255, 255, 255, 0.5);
+$body-tertiary-bg-dark: #2f3b41;
+$body-emphasis-color-dark: #fff;
+$border-color-dark: #44555e;
+$border-color-translucent-dark: rgba(255, 255, 255, 0.15);
+
+@import "bootstrap/scss/bootstrap";
+
+// --- Fonts ------------------------------------------------------------------
+// Chakra Petch, taken from the game client (SIL Open Font License 1.1).
+@font-face {
+  font-family: "Chakra Petch";
+  src: url("/fonts/ChakraPetch-Regular.ttf");
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Chakra Petch";
+  src: url("/fonts/ChakraPetch-Medium.ttf");
+  font-weight: 500;
+  font-display: swap;
+}
+
+// --- Client base styles -----------------------------------------------------
+// Ported from solaris-games/solaris (GPL-3.0-or-later): client/src/assets/styles.css
+.bg-info {
+  color: white;
+}
+
+.bg-info .small,
+.bg-info small {
+  font-size: 0.925em;
+}
+
+body {
+  min-height: 100vh;
+}
