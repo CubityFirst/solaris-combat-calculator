@@ -23,11 +23,13 @@ import PwaUpdatePrompt from "@/components/PwaUpdatePrompt.vue";
   }
 }
 
+/* Upstream also sets a background colour here, to lift the panel off the star
+   map behind it. Standalone there is nothing behind it, so it inherits the body
+   and the page reads as a single surface. */
 .menu-page {
   opacity: 1;
   animation-name: fadeInAnimation;
   animation-duration: 0.3s;
-  background-color: rgba(29, 40, 53, 0.98);
 }
 
 /* Scroll Bar */
@@ -43,7 +45,7 @@ import PwaUpdatePrompt from "@/components/PwaUpdatePrompt.vue";
 
 /* Option backgrounds are always white in Chrome */
 option {
-  background: rgba(29, 40, 53, 0.98);
+  background: #1d2835;
 }
 
 .form-select option {

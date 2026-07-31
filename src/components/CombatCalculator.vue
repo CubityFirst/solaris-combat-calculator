@@ -53,6 +53,16 @@
           >GPL-3.0-or-later</a
         >. Not affiliated with or endorsed by the Solaris team.
       </small>
+      <p class="mt-2 mb-0">
+        <a
+          :href="repositoryUrl"
+          target="_blank"
+          rel="noopener"
+          class="btn btn-outline-secondary btn-sm"
+        >
+          <i class="fab fa-github me-1"></i> Source on GitHub
+        </a>
+      </p>
     </footer>
   </div>
 </template>
@@ -68,6 +78,9 @@ const isAdvanced = ref(false);
 
 const documentationUrl =
   "https://solaris-games.github.io/solaris-docs/combat.html";
+
+// GPL-3.0 obliges us to make the source available to anyone using the site.
+const repositoryUrl = "https://github.com/CubityFirst/solaris-combat-calculator";
 </script>
 
 <style scoped>

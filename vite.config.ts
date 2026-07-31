@@ -23,7 +23,7 @@ export default defineConfig({
         scope: "/",
         display: "standalone",
         orientation: "any",
-        theme_color: "#273136",
+        theme_color: "#1d2835",
         background_color: "#1d2835",
         categories: ["utilities", "games"],
         icons: [

@@ -51,7 +51,8 @@ const close = () => {
   max-width: calc(100vw - 32px);
   border: 1px solid var(--bs-border-color);
   border-radius: 4px;
-  background-color: rgba(29, 40, 53, 0.98);
+  /* Lighter than the page, so the toast reads as floating above it. */
+  background-color: var(--bs-secondary-bg);
   box-shadow: 0 2px 8px rgb(0 0 0 / 40%);
 }
 

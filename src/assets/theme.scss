@@ -41,11 +41,15 @@ $gray-900: #273136;
 $font-family-base: "Chakra Petch", sans-serif;
 $font-size-base: 0.875rem;
 $body-color: rgba(255, 255, 255, 0.75);
-$body-bg: #273136;
+// In-game the calculator is a panel floating over the star map, so it sits on
+// rgba(29, 40, 53, .98) while the page behind it is #273136. Standalone there is
+// no map and the whole page *is* the calculator, so the panel colour is used
+// throughout - one surface, and it matches the app icon and PWA splash.
+$body-bg: #1d2835;
 
 // --- Dark mode (the only mode this app runs in) -----------------------------
 $body-color-dark: rgba(255, 255, 255, 0.75);
-$body-bg-dark: #273136;
+$body-bg-dark: #1d2835;
 $body-secondary-color-dark: rgba(255, 255, 255, 0.5);
 $body-secondary-bg-dark: #35434a;
 $body-tertiary-color-dark: rgba(255, 255, 255, 0.5);
