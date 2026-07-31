@@ -44,12 +44,44 @@ only the parts that need a live galaxy (building groups from diplomacy, orbiting
 carriers, research levels) were removed, since the calculator builds its groups
 from form inputs instead. Each file names the upstream file it came from.
 
-Two things back that up:
+Three things back that up:
 
 - `test/combat.upstream.spec.ts` is upstream's own `common/spec/combat.spec.ts`,
   run against this port.
-- The port was diffed against upstream's `calculateBasic` across 1512
-  ships/weapons/mode/bonus combinations, with identical results in every one.
+- `test/parity.spec.ts` replays 720 randomly generated battles recorded from
+  upstream and compares every field of the result. See below.
+- The basic calculator was separately diffed against upstream's
+  `calculateBasic` across 1512 ships/weapons/mode/bonus combinations, with
+  identical results in every one.
+
+### The parity suite
+
+`test/parity/golden.json` holds 720 generated battles together with the results
+**upstream produces for them** — 120 small two-group duels and 600 melees of up
+to six groups, with stars and carriers mixed inside a group, specialists on
+both, groups of several allied players, home stars, asteroid fields, and the
+galaxy settings that feed the defender bonus.
+
+Every case is replayed through the ported engine and compared field by field:
+per-group and per-object ship counts, kill and loss tallies, the effective
+weapons every group attacked every other group at, and the winner. The duel band
+additionally compares `estimateNeeded`, the "would have needed N ships" figure —
+114 of the 120 do; the other 6 are cases where upstream's estimator grinds
+towards its internal 10,000-ship cap, which costs seconds per case to replay.
+Those still compare the battle itself, just not the estimate.
+
+The whole set replays in about 200 ms, so it runs as part of `npm test`.
+
+It is checked to be capable of failing: dropping the defender-bonus term from
+the damage clamp in `combat.ts` is caught here, while both the upstream spec and
+the hand-written tests stay green.
+
+Regenerating the golden file needs an upstream checkout:
+
+```sh
+git clone --depth 1 https://github.com/solaris-games/solaris /tmp/solaris
+SOLARIS_UPSTREAM=/tmp/solaris npm run parity:generate
+```
 
 Seven cases in the upstream spec are marked `it.fails`. They expect the defender
 to get a first-strike round, which upstream removed — they fail against

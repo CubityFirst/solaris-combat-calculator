@@ -9,6 +9,7 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "parity:generate": "vite-node scripts/generate-parity-golden.ts",
     "check": "vue-tsc --noEmit && tsc -p tsconfig.worker.json",
     "deploy": "npm run build && npx wrangler deploy",
     "worker:dev": "npm run build && npx wrangler dev"
