@@ -1,14 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="10" fill="#273136" />
-  <circle cx="32" cy="32" r="9" fill="#3cd2a5" />
-  <ellipse
-    cx="32"
-    cy="32"
-    rx="24"
-    ry="9"
-    fill="none"
-    stroke="#4e9cff"
-    stroke-width="3"
-    transform="rotate(-25 32 32)"
-  />
+<!--
+  Carrier glyph from solaris-games/solaris (GPL-3.0-or-later):
+  client/src/assets/map-objects/128x128_carrier.svg, on the Solaris panel navy.
+-->
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  viewBox="0 0 33.866666 33.866668"
+>
+  <rect width="33.866666" height="33.866668" rx="5.29" fill="#1d2835" />
+  <g
+    transform="translate(16.933333,16.933334) scale(0.8) translate(-16.933333,-16.933334)"
+  >
+    <path
+      d="m 16.933334,6.3732834 2.910416,12.9960686 6.085417,4.972315 -6.085417,-0.800439 -2.910417,2.631455 -2.910416,-2.631455 -6.0854169,0.800439 6.0854169,-4.972315 z"
+      fill="#ffffff"
+      stroke="#ffffff"
+      stroke-width="1.30871558"
+      stroke-linecap="round"
+      stroke-miterlimit="8"
+    />
+  </g>
 </svg>

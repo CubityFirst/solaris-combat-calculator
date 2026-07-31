@@ -30,6 +30,7 @@ Files ported (upstream path → path here):
 | `client/src/views/components/FormErrorList.vue` | `src/components/FormErrorList.vue` |
 | `client/src/views/game/components/MenuTitle.vue` | `src/components/MenuTitle.vue` |
 | `client/src/App.vue` (styles) | `src/App.vue` |
+| `client/src/assets/map-objects/128x128_carrier.svg` (app icons) | `public/favicon.svg`, `public/icons/*` |
 | `client/src/assets/styles.css` | `src/assets/theme.scss` |
 
 This project is **not affiliated with or endorsed by** the Solaris team. "Solaris"

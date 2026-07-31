@@ -1,11 +1,13 @@
 <template>
   <main>
     <combat-calculator />
+    <pwa-update-prompt />
   </main>
 </template>
 
 <script setup lang="ts">
 import CombatCalculator from "@/components/CombatCalculator.vue";
+import PwaUpdatePrompt from "@/components/PwaUpdatePrompt.vue";
 </script>
 
 <style>

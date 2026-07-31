@@ -22,6 +22,21 @@ effective weapons each group attacked at, and the ships each losing group needed
 defender bonus, capital star elimination, and the home star defender bonus
 multiplier. They persist in `localStorage`.
 
+## Installable / offline
+
+It's a PWA. Install it from the browser's address bar (or Share → Add to Home
+Screen on iOS) and it runs standalone with its own icon. The calculator makes no
+network calls at all, so once the service worker has precached the build it works
+completely offline, and the game settings already live in `localStorage`.
+
+Verified by installing the service worker against the Worker, stopping the
+server, and reloading — the app still renders from cache.
+
+A new deploy shows a "new version available" banner rather than swapping itself
+in, so a reload can't interrupt a calculation. Font Awesome's `.ttf` files are
+excluded from the precache (700 kB of fallbacks for browsers with no woff2
+support); Chakra Petch stays in, as it only ships as `.ttf`.
+
 ## Is the maths the same?
 
 Yes. `src/solaris/` holds the upstream combat engine essentially unmodified —
@@ -82,8 +97,13 @@ Cloudflare account you deploy with — Wrangler creates the DNS record and cert 
 first deploy. Run `npx wrangler login` first if you haven't.
 
 The Worker (`worker/index.ts`) serves the built assets, adds security headers,
-caches fingerprinted assets immutably while keeping `index.html` uncached, and
-answers `/healthz`.
+caches fingerprinted assets immutably while keeping `index.html`, `sw.js` and the
+manifest uncached, and answers `/healthz`.
+
+It also serves `/index.html` directly instead of letting the asset server
+307-redirect it to `/`. Workbox precaches the entry point under that path and
+rejects a redirect as a bad precache response, which silently aborts the entire
+service worker install — worth knowing before changing that bit.
 
 ## Licence
 

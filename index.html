@@ -8,6 +8,15 @@
       content="Standalone combat calculator for Solaris, the space strategy game. Work out who wins a battle before you commit your carriers."
     />
     <meta name="theme-color" content="#273136" />
+    <!-- iOS ignores the web app manifest, so installability there comes from
+         these plus the apple-touch-icon below. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Combat Calc" />
     <meta property="og:title" content="Solaris Combat Calculator" />
     <meta
       property="og:description"
@@ -15,7 +24,24 @@
     />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <title>Solaris Combat Calculator</title>
+    <style>
+      /* Paints the page background before the stylesheet arrives. Without this
+         the browser shows a white canvas for the first frame, which reads as a
+         flash on load and on every launch of the installed app. `color-scheme`
+         makes the browser's own canvas and scrollbars dark from the start. */
+      html {
+        color-scheme: dark;
+        background-color: #273136;
+      }
+
+      body {
+        margin: 0;
+        background-color: #273136;
+        color: rgba(255, 255, 255, 0.75);
+      }
+    </style>
   </head>
   <body>
     <noscript>
