@@ -1,19 +1,29 @@
 // @vitest-environment jsdom
 // Smoke tests: the ported components mount, accept input and render the result
 // the engine produces.
-import { describe, it, expect, beforeEach } from "vitest";
-import { mount } from "@vue/test-utils";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { enableAutoUnmount, mount } from "@vue/test-utils";
 import CombatCalculator from "../src/components/CombatCalculator.vue";
 import BasicCombatCalculator from "../src/components/BasicCombatCalculator.vue";
 import AdvancedCombatCalculator from "../src/components/AdvancedCombatCalculator.vue";
 import { resetGameSettings } from "../src/stores/game";
 import { useCombatCalculatorStore } from "../src/stores/combatCalculator";
+import { resetBasicCalculator } from "../src/stores/basicCalculator";
+import { clearHistory } from "../src/stores/combatHistory";
+import { isAdvanced } from "../src/stores/ui";
 import { combatService } from "../src/services";
+
+// The calculators read shared stores, so a component left mounted from an
+// earlier test would still be reacting to them.
+enableAutoUnmount(afterEach);
 
 beforeEach(() => {
   localStorage.clear();
   resetGameSettings();
   useCombatCalculatorStore().reset();
+  resetBasicCalculator();
+  clearHistory();
+  isAdvanced.value = false;
 });
 
 describe("CombatCalculator", () => {
@@ -88,27 +98,25 @@ describe("BasicCombatCalculator", () => {
   });
 
   it("applies the defender bonus checkbox", async () => {
-    const remaining = (text: string) =>
-      Number(/wins with (\d+) ship/.exec(text)![1]);
+    // Fought in one calculator, twice: the form state is shared, so two mounts
+    // would be looking at the same battle.
+    const wrapper = await fight(50, 1, 20, 1);
 
-    const withBonus = await fight(50, 1, 20, 1);
+    const remaining = () =>
+      Number(/wins with (\d+) ship/.exec(wrapper.text())![1]);
 
-    const noBonusWrapper = mount(BasicCombatCalculator);
-    await noBonusWrapper.find("#chkDefenderBonus").setValue(false);
-    await noBonusWrapper.find("#defenderShips").setValue(50);
-    await noBonusWrapper.find("#defenderWeaponTech").setValue(1);
-    await noBonusWrapper.find("#attackerShips").setValue(20);
-    await noBonusWrapper.find("#attackerWeaponTech").setValue(1);
-    await noBonusWrapper.find("form").trigger("submit");
+    expect(wrapper.text()).toContain("Defender wins with");
+    const withBonus = remaining();
 
-    expect(withBonus.text()).toContain("Defender wins with");
-    expect(noBonusWrapper.text()).toContain("Defender wins with");
+    await wrapper.find("#chkDefenderBonus").setValue(false);
+    await wrapper.find("form").trigger("submit");
+
+    expect(wrapper.text()).toContain("Defender wins with");
+    const withoutBonus = remaining();
 
     // Firing at weapons 2 instead of 1, the star finishes the attackers in half
     // the rounds and so loses fewer of its own ships.
-    expect(remaining(withBonus.text())).toBeGreaterThan(
-      remaining(noBonusWrapper.text()),
-    );
+    expect(withBonus).toBeGreaterThan(withoutBonus);
   });
 
   it("swaps the two sides", async () => {

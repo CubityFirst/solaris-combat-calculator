@@ -44,6 +44,7 @@ import { type CCGroup, makeCombatGroups } from "@/calculator/types";
 import { useCombatCalculatorStore } from "@/stores/combatCalculator";
 import { combatService } from "@/services";
 import { game } from "@/stores/game";
+import { addEntry } from "@/stores/combatHistory";
 
 const combatCalculatorStore = useCombatCalculatorStore();
 
@@ -114,6 +115,21 @@ const calculate = () => {
     actualCombatGroups,
     groups.value.some((g) => Boolean(g.star)),
   );
+
+  const winner = combatService.getWinnerDetailed(result.value);
+  const winnerIndex = winner ? result.value.groups.indexOf(winner) : -1;
+
+  addEntry({
+    kind: "advanced",
+    sides: result.value.groups.map((g, idx) => ({
+      label: `Group ${idx}`,
+      ships: g.shipsBefore,
+    })),
+    winner: winnerIndex === -1 ? null : `Group ${winnerIndex}`,
+    input: {
+      groups: groups.value,
+    },
+  });
 };
 </script>
 

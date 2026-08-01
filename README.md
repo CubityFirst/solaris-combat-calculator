@@ -22,6 +22,16 @@ effective weapons each group attacked at, and the ships each losing group needed
 defender bonus, capital star elimination, and the home star defender bonus
 multiplier. They persist in `localStorage`.
 
+**Recent Combats** — the last 20 battles from either calculator, three shown at
+a time. Each records the ships every side brought and who won, and **Load** puts
+the whole thing back on the form — including the galaxy settings it was fought
+under, since those change the result.
+
+**Notes** — a plain-text scratch pad, saved as you type.
+
+All three persist in `localStorage`, so they survive a refresh and are there
+when the installed app is reopened offline.
+
 ## Installable / offline
 
 It's a PWA. Install it from the browser's address bar (or Share → Add to Home

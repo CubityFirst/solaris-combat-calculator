@@ -27,9 +27,15 @@ const reset = () => {
   groups.value = [];
 };
 
+/** Loads a battle out of the history. Copied so the stored entry stays intact. */
+export const replaceGroups = (next: CCGroup[]) => {
+  groups.value = JSON.parse(JSON.stringify(next)) as CCGroup[];
+};
+
 export const useCombatCalculatorStore = () => ({
   groups,
   addGroup,
   removeGroup,
+  replaceGroups,
   reset,
 });

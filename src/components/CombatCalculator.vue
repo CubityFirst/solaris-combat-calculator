@@ -32,6 +32,9 @@
     <basic-combat-calculator v-if="!isAdvanced" />
     <advanced-combat-calculator v-else />
 
+    <combat-history />
+    <notepad />
+
     <footer class="pt-3 pb-3 mt-2 text-secondary">
       <small>
         An unofficial standalone port of the
@@ -68,13 +71,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
 import MenuTitle from "@/components/MenuTitle.vue";
 import GameSettings from "@/components/GameSettings.vue";
 import BasicCombatCalculator from "@/components/BasicCombatCalculator.vue";
 import AdvancedCombatCalculator from "@/components/AdvancedCombatCalculator.vue";
-
-const isAdvanced = ref(false);
+import CombatHistory from "@/components/CombatHistory.vue";
+import Notepad from "@/components/Notepad.vue";
+// Shared, so loading a battle from the history can switch to the calculator it
+// was fought in.
+import { isAdvanced } from "@/stores/ui";
 
 const documentationUrl =
   "https://solaris-games.github.io/solaris-docs/combat.html";

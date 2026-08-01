@@ -194,26 +194,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import FormErrorList from "@/components/FormErrorList.vue";
-import type { BasicCombatResult } from "@/solaris/types/combat";
 import { combatService } from "@/services";
 import { game } from "@/stores/game";
-
-type CombatSide = {
-  ships: number;
-  weaponsLevel: number;
-};
-
-const errors = ref<string[]>([]);
-const isCarrierToStar = ref(true);
-const result = ref<BasicCombatResult | null>(null);
+import { addEntry } from "@/stores/combatHistory";
+// The form state lives in a store so a battle can be loaded back out of the
+// history whether or not this component happens to be mounted.
+import {
+  attacker,
+  defender,
+  errors,
+  includeDefenderBonus,
+  isCarrierToStar,
+  result,
+} from "@/stores/basicCalculator";
 
 const hasDefenderBonus = computed(
   () => game.settings.specialGalaxy.defenderBonus === "enabled",
 );
-
-const includeDefenderBonus = ref(hasDefenderBonus.value);
 
 const isInvalid = computed(() => {
   return (
@@ -221,16 +220,6 @@ const isInvalid = computed(() => {
     attacker.value.weaponsLevel <= 0 ||
     attacker.value.ships <= 0
   );
-});
-
-const defender = ref<CombatSide>({
-  ships: 0,
-  weaponsLevel: 1,
-});
-
-const attacker = ref<CombatSide>({
-  ships: 0,
-  weaponsLevel: 1,
 });
 
 const swapValues = () => {
@@ -272,12 +261,34 @@ const calculate = async (e: Event) => {
     return;
   }
 
+  const bonus = includeDefenderBonus.value && hasDefenderBonus.value;
+
   result.value = combatService.calculateBasic(
     defender.value,
     attacker.value,
     isCarrierToStar.value,
-    includeDefenderBonus.value && hasDefenderBonus.value,
+    bonus,
   );
+
+  // Same rule the result panel above uses to name the winner: a draw goes to
+  // the defender, who held the field.
+  const defenderWon =
+    result.value.defender.shipsAfter >= result.value.attacker.shipsAfter;
+
+  addEntry({
+    kind: "basic",
+    sides: [
+      { label: "Defender", ships: result.value.defender.shipsBefore },
+      { label: "Attacker", ships: result.value.attacker.shipsBefore },
+    ],
+    winner: defenderWon ? "Defender" : "Attacker",
+    input: {
+      defender: { ...defender.value },
+      attacker: { ...attacker.value },
+      isCarrierToStar: isCarrierToStar.value,
+      includeDefenderBonus: bonus,
+    },
+  });
 };
 </script>
 
