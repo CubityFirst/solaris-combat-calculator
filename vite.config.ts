@@ -22,7 +22,10 @@ export default defineConfig({
         start_url: "/",
         scope: "/",
         display: "standalone",
-        orientation: "any",
+        // Locks the installed app to portrait. This is the only mechanism that
+        // actually holds - see the note in README; a browser tab cannot be
+        // stopped from rotating.
+        orientation: "portrait",
         theme_color: "#1d2835",
         background_color: "#1d2835",
         categories: ["utilities", "games"],

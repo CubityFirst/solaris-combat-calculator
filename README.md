@@ -35,7 +35,14 @@ when the installed app is reopened offline.
 ## Installable / offline
 
 It's a PWA. Install it from the browser's address bar (or Share → Add to Home
-Screen on iOS) and it runs standalone with its own icon. The calculator makes no
+Screen on iOS) and it runs standalone with its own icon, locked to portrait.
+
+The lock is `orientation: "portrait"` in the manifest, which browsers honour
+only for the **installed** app. Open in a normal browser tab and it will still
+rotate with the device — there is no web API that overrides the browser's own
+rotation, and `screen.orientation.lock()` needs fullscreen and does nothing at
+all on iOS. Portrait everywhere would mean shipping a CSS counter-rotation hack,
+which breaks text selection and scrolling, so it isn't done here. The calculator makes no
 network calls at all, so once the service worker has precached the build it works
 completely offline, and the game settings already live in `localStorage`.
 
