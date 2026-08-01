@@ -86,32 +86,43 @@ It is checked to be capable of failing: dropping the defender-bonus term from
 the damage clamp in `combat.ts` is caught here, while both the upstream spec and
 the hand-written tests stay green.
 
-### The one bounded calculation
+### The one search that isn't upstream's
 
-`estimateNeeded` — "would have needed N ships" — walks up one ship at a time,
-re-fighting the entire battle at every step, and gives up after 10,001. That is
-quadratic in the size of the battle. In-game the inputs come from a real galaxy
-and stay small; on a web form anyone can type a big number, and 45 ships against
-231,231 locked the page for minutes.
+`estimateNeeded` — "would have needed N ships" — walks up one ship at a time
+upstream, re-fighting the entire battle at every step, and gives up after
+10,001. That is quadratic in the size of the battle. In-game the inputs come
+from a real galaxy and stay small; on a web form anyone can type a big number,
+and 45 ships against 231,231 locked the page for minutes.
 
-It cannot be replaced with a binary search, however tempting: **winning is not
-monotone in ship count.** In one of the recorded parity battles 179 ships win,
-180 and 181 lose, and 182 wins again — the damage clamp and the kill-rounding
-make the outcome jump around. A binary search answers 182 there; upstream, and
-this, answer 179. The parity suite caught exactly that when it was tried.
+Here it jumps instead: probe upwards in doubling steps until the group wins,
+binary-search the bracket for the boundary, then **walk back down past it**.
 
-So the search is unchanged, and instead it is given a work budget (measured in
-simulated rounds, not wall-clock, so the answer is the same on every machine).
-Past the budget the calculator reports that the figure could not be determined
-rather than showing a number it never reached. 45 v 231,231 now returns in about
-a second, and battles are always resolved exactly — only the estimate is bounded.
+That last step is the whole difficulty, because **winning is not monotone in
+ship count**. In one recorded battle 179 ships win, 180 and 181 lose, and 182
+wins again — a nearly-dead defender fires for `ships + defenderBonus` under the
+damage clamp, which can beat what it does at full strength. A plain binary
+search answers 182 there; upstream, and this, answer 179. So refinement carries
+on until it has seen `REFINE_FAIL_RUN` (8) losses in a row.
 
-`ESTIMATE_WORK_BUDGET` in `src/solaris/services/combat.ts` sets how far it
-looks. Reach grows with the *square root* of the budget, since the search
-re-fights a longer battle at every rung: the current 3,000,000 answers up to
-about 1,200 ships needed, and quadrupling it would roughly double that. It
-cannot lift the answer above 10,001 at any setting — the search stops there
-regardless, as upstream does.
+`test/estimate-search.spec.ts` reconstructs the full win curve for a few hundred
+battles and checks two things: the fast search agrees with the exact walk in
+every case, and the widest gap between winning counts anywhere in them is **2**
+— a quarter of the run length. A gap wider than the run would make it answer too
+high, so this is an estimate that agrees with the game everywhere it has been
+checked rather than a proof.
+
+| | one at a time | jump and refine |
+| --- | --- | --- |
+| 45 v 1,000 | 196 ms | 24 ms |
+| 45 v 5,000 | 5.6 s | 106 ms |
+| 45 v 20,000 | 92 s | 389 ms |
+| 45 v 231,231 | minutes | 34 ms |
+
+`ESTIMATE_WORK_BUDGET` in `src/solaris/services/combat.ts` remains as a backstop
+against pathological battles; ordinary use no longer comes near it. Nothing can
+lift an answer above 10,001 — the search stops there as upstream does, and an
+answer of exactly that means "still losing", which the UI shows as "more than
+10,000" rather than as a figure.
 
 Regenerating the golden file needs an upstream checkout:
 
@@ -140,8 +151,10 @@ Everything that needed the galaxy, and nothing else:
   game.
 - The Calculate button is also disabled on per-group errors. Upstream leaves it
   live, which throws on e.g. a group with no objects. No result changes.
-- The "would have needed N ships" search gives up on very large battles — see
-  below. Battles are always resolved exactly; only the estimate is bounded.
+- The "would have needed N ships" figure is found by a different search — see
+  below. It agrees with the game on every battle checked, but unlike the rest of
+  the engine that is measured rather than guaranteed. Battles themselves are
+  always resolved exactly.
 - The theme is stock Bootstrap recompiled with the Solaris palette rather than
   the game's licensed template — see [NOTICE.md](NOTICE.md).
 

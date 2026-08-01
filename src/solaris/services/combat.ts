@@ -543,11 +543,12 @@ const findGroupDetailed = <
  * to stop searching. Counting work rather than watching the clock keeps the
  * answer the same on every machine.
  *
- * Raising this buys answers for bigger battles at a linear cost in the worst
- * case. Note that it cannot lift the answer above 10,001 however high it goes:
- * the search gives up at that many ships regardless, as upstream does.
+ * Since the search jumps rather than walking, this is now a backstop against
+ * pathological battles rather than something ordinary use runs into. It cannot
+ * lift the answer above 10,001 however high it goes: the search gives up at
+ * that many ships regardless, as upstream does.
  */
-const ESTIMATE_WORK_BUDGET = 3_000_000;
+const ESTIMATE_WORK_BUDGET = 15_000_000;
 
 type WorkBudget = { remaining: number };
 
@@ -567,23 +568,52 @@ const spend = (budget: WorkBudget | undefined, amount: number) => {
 };
 
 /**
+ * Upstream's ceiling: it stops once it has tried this many ships, so the answer
+ * is capped here whether or not the group ever wins.
+ *
+ * An answer of exactly this therefore means "still losing at 10,001", not "wins
+ * with 10,001" - upstream cannot tell the two apart and neither can this, so
+ * the UI reports it as "more than 10,000" rather than as a figure.
+ */
+export const SHIPS_NEEDED_CEILING = 10001;
+
+/**
+ * How many losses in a row the downward refinement needs to see before it
+ * accepts that it has found the lowest winning count.
+ *
+ * Winning is not monotone in ship count - see the note on `estimateNeeded` - so
+ * the refinement cannot stop at the first loss. It keeps going until it has
+ * seen a run this long. Measured against the exact walk, the widest gap between
+ * two winning counts is 2, so 8 is a wide margin; `estimate-search.spec.ts`
+ * re-measures it rather than trusting this comment.
+ */
+const REFINE_FAIL_RUN = 8;
+
+/**
  * How many ships a group would have needed to win, or `null` if working that
  * out would have taken too long.
  *
- * The search is upstream's, unchanged: walk up one ship at a time, re-fighting
- * the whole battle at each step, and give up after 10,001. It cannot be
- * replaced with a binary search, however tempting - winning is *not* monotone
- * in ship count. In one of the recorded parity battles 179 ships win, 180 and
- * 181 lose, and 182 wins again, because the damage clamp and the kill-rounding
- * make the outcome jump around. A binary search returns 182 there; upstream,
- * and this, return 179.
- *
- * What is new is the budget. The walk is quadratic in the size of the battle -
+ * Upstream walks up one ship at a time, re-fighting the whole battle at each
+ * step, and gives up after 10,001. That is quadratic in the size of the battle:
  * 45 ships against 20,000 takes 92 seconds, and against a few hundred thousand
  * it locks the page for minutes. In-game the inputs come from a real galaxy and
- * stay small; on a web form anyone can type 231231. So the walk now gives up
- * once it has done `ESTIMATE_WORK_BUDGET` work, and the caller reports that it
- * could not be determined rather than showing a number that was never reached.
+ * stay small; on a web form anyone can type 231231.
+ *
+ * So this jumps instead: probe upwards in doubling steps until the group wins,
+ * binary-search the bracket for the boundary, then walk back down past it.
+ *
+ * The walk back down is the part that matters, because winning is *not*
+ * monotone in ship count. In one recorded battle 179 ships win, 180 and 181
+ * lose, and 182 wins again - a nearly-dead defender fires for `ships +
+ * defenderBonus` under the damage clamp, which can beat what it would do at
+ * full strength. Stopping at the first loss would answer 182 where upstream
+ * answers 179. Refinement therefore continues until it has seen
+ * `REFINE_FAIL_RUN` losses in a row.
+ *
+ * That leaves one way to differ from upstream: a winning count sitting alone
+ * below a gap wider than the run. No such gap has been found - the widest
+ * measured is 2 - but it is not impossible, so this is an estimate that agrees
+ * with the game everywhere it has been checked, rather than a proof.
  */
 const estimateNeeded = <
     ID extends Id,
@@ -606,69 +636,126 @@ const estimateNeeded = <
 
     const budget: WorkBudget = { remaining: ESTIMATE_WORK_BUDGET };
 
-    let shipsNeeded = originalShips + 1;
+    const target = originalGroups.find((gr) => gr.id === estimateForGroup.id);
 
-    try {
-        while (true) {
-            const modifiedGroups = originalGroups.map((gr) => {
-                if (gr.id === estimateForGroup.id) {
-                    const newGr = {
-                        ...gr,
-                        originalShips: shipsNeeded,
-                        ships: shipsNeeded,
-                        shipsKilled: 0,
-                    };
-                    if (newGr.star) {
-                        newGr.star = {
-                            ...newGr.star,
-                            ships:
-                                newGr.star.ships! +
-                                (shipsNeeded - originalShips),
-                        };
-                    } else {
-                        newGr.carriers[0] = {
-                            ...newGr.carriers[0],
-                            ships:
-                                newGr.carriers[0].ships! +
-                                (shipsNeeded - originalShips),
-                        };
-                    }
-                    return newGr;
-                } else {
-                    return gr;
-                }
-            });
+    // Captured before any probe runs. Upstream reassigns into the shared
+    // `carriers` array as it walks, so each step inflates the next one's
+    // carrier ships; that never reaches the win/lose decision, which reads
+    // group-level ships, but it does make the outcome depend on the order the
+    // probes were made - and these are not made in order.
+    const baseStarShips = target?.star?.ships ?? 0;
+    const baseCarrierShips = target?.carriers?.[0]?.ships ?? 0;
 
-            const newResult = combatLoop(
-                { round: 0, groups: modifiedGroups },
-                combatResult.isCarrierToStarCombat,
-                undefined,
-                budget,
-            );
+    const winsWith = (shipsNeeded: number): boolean => {
+        const extra = shipsNeeded - originalShips;
 
-            const groupInNew = newResult.groups.find(
-                (g) => g.id === estimateForGroup.id,
-            );
-
-            if (terminationCondition === "greaterThanZeroShips") {
-                if (groupInNew!.shipsAfter > 0) {
-                    break;
-                }
-            } else if (terminationCondition === "eliminateOtherGroups") {
-                const otherGroups = newResult.groups.filter(
-                    (g) => g != groupInNew!,
-                );
-                if (otherGroups.every((g) => g.shipsAfter === 0)) {
-                    break;
-                }
+        const modifiedGroups = originalGroups.map((gr) => {
+            if (gr.id !== estimateForGroup.id) {
+                return gr;
             }
 
-            if (shipsNeeded > 10000) {
+            const newGr = {
+                ...gr,
+                originalShips: shipsNeeded,
+                ships: shipsNeeded,
+                shipsKilled: 0,
+            };
+
+            if (newGr.star) {
+                newGr.star = { ...newGr.star, ships: baseStarShips + extra };
+            } else {
+                newGr.carriers = [...newGr.carriers];
+                newGr.carriers[0] = {
+                    ...newGr.carriers[0],
+                    ships: baseCarrierShips + extra,
+                };
+            }
+
+            return newGr;
+        });
+
+        const newResult = combatLoop(
+            { round: 0, groups: modifiedGroups },
+            combatResult.isCarrierToStarCombat,
+            undefined,
+            budget,
+        );
+
+        const groupInNew = newResult.groups.find(
+            (g) => g.id === estimateForGroup.id,
+        );
+
+        if (terminationCondition === "greaterThanZeroShips") {
+            return groupInNew!.shipsAfter > 0;
+        }
+
+        return newResult.groups
+            .filter((g) => g != groupInNew!)
+            .every((g) => g.shipsAfter === 0);
+    };
+
+    const lowest = originalShips + 1;
+
+    // Upstream stops after 10,001 tries, but always makes at least one - so for
+    // a group already bigger than the ceiling, that single try is the search.
+    const ceiling = Math.max(SHIPS_NEEDED_CEILING, lowest);
+
+    try {
+        // Jump: lowest, +1, +3, +7, ... until something wins.
+        let lastLoss = lowest - 1;
+        let firstWin = -1;
+        let probe = lowest;
+        let delta = 1;
+
+        while (true) {
+            if (winsWith(probe)) {
+                firstWin = probe;
                 break;
             }
 
-            shipsNeeded++;
+            lastLoss = probe;
+
+            if (probe >= ceiling) {
+                break;
+            }
+
+            delta *= 2;
+            probe = Math.min(ceiling, lowest + delta - 1);
         }
+
+        if (firstWin === -1) {
+            return ceiling;
+        }
+
+        // Narrow the bracket to the boundary of the winning run.
+        let low = lastLoss + 1;
+        let high = firstWin;
+
+        while (low < high) {
+            const mid = low + Math.floor((high - low) / 2);
+
+            if (winsWith(mid)) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
+        }
+
+        let best = low;
+
+        // Then step back down through any gaps below it.
+        let lossRun = 0;
+
+        for (let n = best - 1; n >= lowest && lossRun < REFINE_FAIL_RUN; n--) {
+            if (winsWith(n)) {
+                best = n;
+                lossRun = 0;
+            } else {
+                lossRun++;
+            }
+        }
+
+        return best;
     } catch (e) {
         if (e instanceof WorkBudgetExhausted) {
             return null;
@@ -676,8 +763,6 @@ const estimateNeeded = <
 
         throw e;
     }
-
-    return shipsNeeded;
 };
 
 export class CombatService<ID extends Id> {

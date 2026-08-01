@@ -18,13 +18,17 @@
       {{ winnerName }} wins the battle!
     </p>
     <p v-for="needed of neededForOthers" class="text-warning m-0">
-      <span v-if="needed.needed !== null">
-        Group {{ result.groups.indexOf(needed.group) }} needed
-        {{ needed.needed }} ships to win.
-      </span>
-      <span v-else class="text-secondary">
+      <span v-if="needed.needed === null" class="text-secondary">
         Group {{ result.groups.indexOf(needed.group) }} is too far behind to
         work out how many ships it would have needed.
+      </span>
+      <span v-else-if="needed.needed >= SHIPS_NEEDED_CEILING">
+        Group {{ result.groups.indexOf(needed.group) }} needed more than 10,000
+        ships to win.
+      </span>
+      <span v-else>
+        Group {{ result.groups.indexOf(needed.group) }} needed
+        {{ needed.needed }} ships to win.
       </span>
     </p>
   </div>
@@ -40,6 +44,9 @@ import type {
 } from "@/solaris/types/combat";
 import CalculatorCombatResultGroup from "@/components/CalculatorCombatResultGroup.vue";
 import { combatService } from "@/services";
+// An answer of exactly the ceiling means the search never found a win, so it is
+// reported as a lower bound rather than as a figure.
+import { SHIPS_NEEDED_CEILING } from "@/solaris/services/combat";
 
 const props = defineProps<{
   result: DetailedCombatResult<

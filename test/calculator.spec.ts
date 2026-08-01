@@ -260,14 +260,16 @@ describe("lopsided battles do not hang", () => {
       ),
     );
 
-    // The battle itself is still resolved exactly.
+    // The battle itself is resolved exactly.
     expect(result.defender.shipsAfter).toBe(0);
     expect(result.attacker.shipsAfter).toBe(231141);
 
-    // The estimate is abandoned rather than ground out.
-    expect(result.defender.shipsNeeded).toBeNull();
+    // The search reaches its ceiling without the defender ever winning, which
+    // is upstream's answer too. The UI renders this as "more than 10,000"
+    // rather than as a figure.
+    expect(result.defender.shipsNeeded).toBe(10001);
 
-    // Generous next to the several minutes this used to take, but far below it.
+    // This used to take several minutes.
     expect(ms).toBeLessThan(5000);
   });
 
@@ -306,27 +308,24 @@ describe("lopsided battles do not hang", () => {
     ).toBe(500);
   });
 
-  it("answers up to roughly 1,200 ships needed", () => {
-    // The budget buys reach proportional to its square root, because the
-    // search re-fights a longer battle at every rung. Pins where that lands so
-    // a change to ESTIMATE_WORK_BUDGET shows up as a deliberate move.
-    expect(
+  it("answers battles that the one-at-a-time walk could not reach", () => {
+    // Every one of these used to be abandoned, or take tens of seconds.
+    const needed = (attackerShips: number) =>
       combatService.calculateBasic(
         { ships: 45, weaponsLevel: 1 },
-        { ships: 2400, weaponsLevel: 1 },
+        { ships: attackerShips, weaponsLevel: 1 },
         true,
         true,
-      ).defender.shipsNeeded,
-    ).toBe(1200);
+      ).defender.shipsNeeded;
 
-    expect(
-      combatService.calculateBasic(
-        { ships: 45, weaponsLevel: 1 },
-        { ships: 3000, weaponsLevel: 1 },
-        true,
-        true,
-      ).defender.shipsNeeded,
-    ).toBeNull();
+    expect(needed(2400)).toBe(1200);
+    expect(needed(3000)).toBe(1500);
+    expect(needed(5000)).toBe(2500);
+
+    // 92 seconds under the old walk.
+    const [answer, ms] = timed(() => needed(20000));
+    expect(answer).toBe(10000);
+    expect(ms).toBeLessThan(5000);
   });
 });
 

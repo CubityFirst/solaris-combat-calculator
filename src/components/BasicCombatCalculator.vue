@@ -177,14 +177,22 @@
       </p>
     </div>
     <p class="col text-center mb-0" v-if="result?.defender.shipsNeeded">
-      <small
+      <small v-if="isBeyondCeiling(result.defender.shipsNeeded)"
+        ><span class="text-success">Defender</span> would need more than
+        <span class="text-success">10,000</span> ships to win.</small
+      >
+      <small v-else
         ><span class="text-success">Defender</span> would need
         <span class="text-success">{{ result.defender.shipsNeeded }}</span>
         ship(s) to win.</small
       >
     </p>
     <p class="col text-center mb-0" v-if="result?.attacker.shipsNeeded">
-      <small
+      <small v-if="isBeyondCeiling(result.attacker.shipsNeeded)"
+        ><span class="text-danger">Attacker</span> would need more than
+        <span class="text-danger">10,000</span> ships to win.</small
+      >
+      <small v-else
         ><span class="text-danger">Attacker</span> would need
         <span class="text-danger">{{ result.attacker.shipsNeeded }}</span>
         ship(s) to win.</small
@@ -203,6 +211,7 @@
 import { computed } from "vue";
 import FormErrorList from "@/components/FormErrorList.vue";
 import { combatService } from "@/services";
+import { SHIPS_NEEDED_CEILING } from "@/solaris/services/combat";
 import { game } from "@/stores/game";
 import { addEntry } from "@/stores/combatHistory";
 // The form state lives in a store so a battle can be loaded back out of the
@@ -219,6 +228,12 @@ import {
 const hasDefenderBonus = computed(
   () => game.settings.specialGalaxy.defenderBonus === "enabled",
 );
+
+// The search stops at 10,001 ships, so that answer means "still losing there",
+// not "wins with 10,001". Reporting it as a figure would suggest a fleet that
+// size is enough, when it is not.
+const isBeyondCeiling = (shipsNeeded: number | null | undefined) =>
+  typeof shipsNeeded === "number" && shipsNeeded >= SHIPS_NEEDED_CEILING;
 
 // `null` means the search was abandoned - the battle was too big to walk up
 // one ship at a time. Say so, rather than quietly showing nothing.
