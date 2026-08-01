@@ -103,8 +103,15 @@ this, answer 179. The parity suite caught exactly that when it was tried.
 So the search is unchanged, and instead it is given a work budget (measured in
 simulated rounds, not wall-clock, so the answer is the same on every machine).
 Past the budget the calculator reports that the figure could not be determined
-rather than showing a number it never reached. 45 v 231,231 now returns in
-~230 ms, and battles are always resolved exactly — only the estimate is bounded.
+rather than showing a number it never reached. 45 v 231,231 now returns in about
+a second, and battles are always resolved exactly — only the estimate is bounded.
+
+`ESTIMATE_WORK_BUDGET` in `src/solaris/services/combat.ts` sets how far it
+looks. Reach grows with the *square root* of the budget, since the search
+re-fights a longer battle at every rung: the current 3,000,000 answers up to
+about 1,200 ships needed, and quadrupling it would roughly double that. It
+cannot lift the answer above 10,001 at any setting — the search stops there
+regardless, as upstream does.
 
 Regenerating the golden file needs an upstream checkout:
 

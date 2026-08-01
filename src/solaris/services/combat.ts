@@ -536,14 +536,18 @@ const findGroupDetailed = <
 
 /**
  * Work allowed for a single `estimateNeeded` call, in simulated combat rounds
- * plus ships distributed. Chosen so the worst case is around a second.
+ * plus ships distributed. Worst case is a bit over a second.
  *
  * The search itself has to stay exactly as upstream wrote it - see the note on
  * `estimateNeeded` - so the only way to stop a large battle locking the page is
  * to stop searching. Counting work rather than watching the clock keeps the
  * answer the same on every machine.
+ *
+ * Raising this buys answers for bigger battles at a linear cost in the worst
+ * case. Note that it cannot lift the answer above 10,001 however high it goes:
+ * the search gives up at that many ships regardless, as upstream does.
  */
-const ESTIMATE_WORK_BUDGET = 600_000;
+const ESTIMATE_WORK_BUDGET = 3_000_000;
 
 type WorkBudget = { remaining: number };
 

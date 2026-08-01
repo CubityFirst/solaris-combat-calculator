@@ -305,6 +305,29 @@ describe("lopsided battles do not hang", () => {
       ).defender.shipsNeeded,
     ).toBe(500);
   });
+
+  it("answers up to roughly 1,200 ships needed", () => {
+    // The budget buys reach proportional to its square root, because the
+    // search re-fights a longer battle at every rung. Pins where that lands so
+    // a change to ESTIMATE_WORK_BUDGET shows up as a deliberate move.
+    expect(
+      combatService.calculateBasic(
+        { ships: 45, weaponsLevel: 1 },
+        { ships: 2400, weaponsLevel: 1 },
+        true,
+        true,
+      ).defender.shipsNeeded,
+    ).toBe(1200);
+
+    expect(
+      combatService.calculateBasic(
+        { ships: 45, weaponsLevel: 1 },
+        { ships: 3000, weaponsLevel: 1 },
+        true,
+        true,
+      ).defender.shipsNeeded,
+    ).toBeNull();
+  });
 });
 
 describe("ship totals", () => {
