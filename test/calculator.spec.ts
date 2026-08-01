@@ -264,10 +264,10 @@ describe("lopsided battles do not hang", () => {
     expect(result.defender.shipsAfter).toBe(0);
     expect(result.attacker.shipsAfter).toBe(231141);
 
-    // The search reaches its ceiling without the defender ever winning, which
-    // is upstream's answer too. The UI renders this as "more than 10,000"
-    // rather than as a figure.
-    expect(result.defender.shipsNeeded).toBe(10001);
+    // The exact figure, not a ceiling. 231,231 attacking ships at 1 damage a
+    // round against a star returning 2 takes 115,616 rounds to clear, and the
+    // star loses one ship a round throughout.
+    expect(result.defender.shipsNeeded).toBe(115616);
 
     // This used to take several minutes.
     expect(ms).toBeLessThan(5000);
@@ -322,10 +322,27 @@ describe("lopsided battles do not hang", () => {
     expect(needed(3000)).toBe(1500);
     expect(needed(5000)).toBe(2500);
 
-    // 92 seconds under the old walk.
+    // 92 seconds under the old walk. Upstream would answer 10,001 here, its
+    // ceiling; the real figure happens to be just under it.
     const [answer, ms] = timed(() => needed(20000));
     expect(answer).toBe(10000);
     expect(ms).toBeLessThan(5000);
+  });
+
+  it("gives up rather than grinding when even jumping is too slow", () => {
+    // Five million attacking ships needs an answer near 2.5 million, and every
+    // probe has to fight a battle that long. The work budget stops it.
+    const [result, ms] = timed(() =>
+      combatService.calculateBasic(
+        { ships: 45, weaponsLevel: 1 },
+        { ships: 5_000_000, weaponsLevel: 1 },
+        true,
+        true,
+      ),
+    );
+
+    expect(result.defender.shipsNeeded).toBeNull();
+    expect(ms).toBeLessThan(10000);
   });
 });
 

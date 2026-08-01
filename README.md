@@ -111,18 +111,26 @@ every case, and the widest gap between winning counts anywhere in them is **2**
 high, so this is an estimate that agrees with the game everywhere it has been
 checked rather than a proof.
 
+Probes also skip two things the outcome does not depend on: splitting losses
+across individual carriers, and working out which group gets credit for which
+kill. Both cost real time every round — the kill credit builds and sorts an
+array per group per round — and neither is read by a win/lose test. The battle
+the user actually asked for is resolved in full.
+
 | | one at a time | jump and refine |
 | --- | --- | --- |
-| 45 v 1,000 | 196 ms | 24 ms |
-| 45 v 5,000 | 5.6 s | 106 ms |
-| 45 v 20,000 | 92 s | 389 ms |
-| 45 v 231,231 | minutes | 34 ms |
+| 45 v 1,000 | 196 ms | 5 ms |
+| 45 v 5,000 | 5.6 s | 16 ms |
+| 45 v 20,000 | 92 s | 72 ms |
+| 45 v 231,231 | minutes | 566 ms |
 
-`ESTIMATE_WORK_BUDGET` in `src/solaris/services/combat.ts` remains as a backstop
-against pathological battles; ordinary use no longer comes near it. Nothing can
-lift an answer above 10,001 — the search stops there as upstream does, and an
-answer of exactly that means "still losing", which the UI shows as "more than
-10,000" rather than as a figure.
+Because jumping makes a higher ceiling nearly free — one extra probe per
+doubling — `SHIPS_NEEDED_CEILING` is 10,000,000 rather than upstream's 10,001.
+Battles that upstream can only answer "10,001" for now get a real figure: 45
+against 231,231 needs **115,616**. `ESTIMATE_WORK_BUDGET` is what stops a
+runaway battle now, and it only bites on the genuinely absurd — 45 against five
+million gives up after about three seconds, since the answer there is near 2.5
+million and every probe has to fight a battle that long.
 
 Regenerating the golden file needs an upstream checkout:
 

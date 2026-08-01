@@ -23,8 +23,8 @@
         work out how many ships it would have needed.
       </span>
       <span v-else-if="needed.needed >= SHIPS_NEEDED_CEILING">
-        Group {{ result.groups.indexOf(needed.group) }} needed more than 10,000
-        ships to win.
+        Group {{ result.groups.indexOf(needed.group) }} needed more than
+        {{ ceiling }} ships to win.
       </span>
       <span v-else>
         Group {{ result.groups.indexOf(needed.group) }} needed
@@ -56,6 +56,8 @@ const props = defineProps<{
     CombatBaseCarrier<string>
   >;
 }>();
+
+const ceiling = (SHIPS_NEEDED_CEILING - 1).toLocaleString();
 
 const winner = computed(() => combatService.getWinnerDetailed(props.result));
 const winnerName = computed(

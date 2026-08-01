@@ -68,6 +68,9 @@ type GroupsWithDamage<
     C extends CombatBaseCarrier<ID>,
 > = [CombatGroup<ID, P, S, C>, Map<string, number>][];
 
+/** Shared, because it is only ever read from and never written to. */
+const EMPTY_KILLS: Map<string, number> = new Map();
+
 //This is specifically for crediting ship kills:
 // -proportionally to raw damage when incoming damage exceeds the target's remaining ships.
 // -remainder handling ensures total credited kills equals actual ships destroyed.
@@ -140,6 +143,7 @@ const calculateIncomingDamages = <
 >(
     groups: CombatGroup<ID, P, S, C>[],
     attackingGroups: CombatGroup<ID, P, S, C>[],
+    outcomeOnly?: boolean,
 ): GroupsWithDamage<ID, P, S, C> => {
     return groups.map((group, groupIdx) => {
         const damageFromGroups = new Map<string, number>();
@@ -174,11 +178,16 @@ const calculateIncomingDamages = <
         const shipsAfterDamage = Math.max(0, group.ships - totalDamage);
         const shipsActuallyDestroyed = group.ships - shipsAfterDamage; //in case damage > ships remaining, shipsDestroyed is the accurate number in order to credit kills for
 
-        const killsFromGroups = allocateKillsFromDamage(
-            damageFromGroups,
-            totalDamage,
-            shipsActuallyDestroyed,
-        );
+        // Working out who gets credit for which kill costs an array, a sort
+        // and a pass over every attacker, every round. Nothing reads it when
+        // only the outcome is wanted.
+        const killsFromGroups = outcomeOnly
+            ? EMPTY_KILLS
+            : allocateKillsFromDamage(
+                  damageFromGroups,
+                  totalDamage,
+                  shipsActuallyDestroyed,
+              );
 
         return [
             {
@@ -220,12 +229,19 @@ const performCombatRound = <
 >(
     oldState: CombatRoundState<ID, P, S, C>,
     isCarrierToStarCombat: boolean,
+    outcomeOnly?: boolean,
 ): CombatRoundState<ID, P, S, C> => {
     let groupsWithDamage: GroupsWithDamage<ID, P, S, C>;
 
-    groupsWithDamage = calculateIncomingDamages(oldState.groups, oldState.groups);
+    groupsWithDamage = calculateIncomingDamages(
+        oldState.groups,
+        oldState.groups,
+        outcomeOnly,
+    );
 
-    const newGroups = applyDamages(groupsWithDamage);
+    const newGroups = outcomeOnly
+        ? groupsWithDamage.map(([group]) => group)
+        : applyDamages(groupsWithDamage);
 
     return {
         round: oldState.round + 1,
@@ -396,6 +412,39 @@ const distributeDamage = <
     };
 };
 
+/**
+ * The group-level half of `distributeDamage`, without splitting losses across
+ * carriers and the star.
+ *
+ * The "ships needed" search only asks who was left standing, which is a
+ * group-level number, but the split is the single most expensive part of
+ * resolving a battle - it hands out losses one ship at a time. Skipping it
+ * during probes makes each one several times cheaper and cannot change the
+ * answer. The battle the user asked for is always distributed properly.
+ */
+const summariseGroup = <
+    ID extends Id,
+    P extends CombatBasePlayer<ID>,
+    S extends CombatBaseStar<ID>,
+    C extends CombatBaseCarrier<ID>,
+>(
+    group: CombatResultGrouped<ID, P, S, C>,
+): DetailedCombatResultGroup<ID, P, S, C> => ({
+    id: group.id,
+    players: group.players,
+    carriers: [],
+    star: undefined,
+    shipsBefore: group.shipsBefore,
+    shipsLost: group.shipsLost,
+    shipsAfter: group.shipsAfter,
+    shipsKilled: group.shipsKilled,
+    carriersKilled: 0,
+    carriersLost: 0,
+    specialistsKilled: 0,
+    specialistsLost: 0,
+    attackAgainst: mapToRecord(group.attackAgainst),
+});
+
 const computeKills = <
     ID extends Id,
     P extends CombatBasePlayer<ID>,
@@ -447,11 +496,11 @@ const makeResult = <
     originalCombatGroups: CombatGroup<ID, P, S, C>[],
     isCarrierToStarCombat: boolean,
     budget?: WorkBudget,
+    skipDistribution?: boolean,
 ): DetailedCombatResult<ID, P, S, C> => {
     const groups: DetailedCombatResultGroup<ID, P, S, C>[] = state.groups.map(
         (g) => {
-            return distributeDamage(
-                {
+            const summary = {
                 id: g.id,
                 players: g.players,
                 star: g.star,
@@ -461,9 +510,11 @@ const makeResult = <
                 shipsLost: g.originalShips - g.ships,
                 shipsKilled: g.shipsKilled,
                 attackAgainst: g.attackAgainst,
-                },
-                budget,
-            );
+            };
+
+            return skipDistribution
+                ? summariseGroup(summary)
+                : distributeDamage(summary, budget);
         },
     );
 
@@ -497,6 +548,7 @@ const combatLoop = <
     isCarrierToStarCombat: boolean,
     callback?: (st: CombatRoundState<ID, P, S, C>) => void,
     budget?: WorkBudget,
+    skipDistribution?: boolean,
 ): DetailedCombatResult<ID, P, S, C> => {
     let state = initState;
 
@@ -514,10 +566,16 @@ const combatLoop = <
         // actually asked for is always fought to the end.
         spend(budget, 1);
 
-        state = performCombatRound(state, isCarrierToStarCombat);
+        state = performCombatRound(state, isCarrierToStarCombat, skipDistribution);
     }
 
-    return makeResult(state, initState.groups, isCarrierToStarCombat, budget);
+    return makeResult(
+        state,
+        initState.groups,
+        isCarrierToStarCombat,
+        budget,
+        skipDistribution,
+    );
 };
 
 const findGroupDetailed = <
@@ -568,14 +626,19 @@ const spend = (budget: WorkBudget | undefined, amount: number) => {
 };
 
 /**
- * Upstream's ceiling: it stops once it has tried this many ships, so the answer
- * is capped here whether or not the group ever wins.
+ * The largest reinforcement the search will consider.
  *
- * An answer of exactly this therefore means "still losing at 10,001", not "wins
- * with 10,001" - upstream cannot tell the two apart and neither can this, so
- * the UI reports it as "more than 10,000" rather than as a figure.
+ * Upstream stops at 10,001, because walking up one ship at a time makes
+ * anything higher unaffordable. This search jumps, so raising the ceiling costs
+ * one extra probe per doubling - roughly ten probes for a thousandfold increase
+ * - and battles that used to report "more than 10,000" now get a real figure.
+ * 45 against 231,231 answers 115,616 rather than throwing up its hands.
+ *
+ * `ESTIMATE_WORK_BUDGET` is what actually stops a runaway battle now. An answer
+ * of exactly this ceiling still means "was still losing there" rather than
+ * "wins with this many", and the UI says so.
  */
-export const SHIPS_NEEDED_CEILING = 10001;
+export const SHIPS_NEEDED_CEILING = 10_000_000;
 
 /**
  * How many losses in a row the downward refinement needs to see before it
@@ -679,6 +742,7 @@ const estimateNeeded = <
             combatResult.isCarrierToStarCombat,
             undefined,
             budget,
+            true, // only the outcome is wanted, not the per-object split
         );
 
         const groupInNew = newResult.groups.find(

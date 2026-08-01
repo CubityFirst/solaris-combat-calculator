@@ -179,7 +179,7 @@
     <p class="col text-center mb-0" v-if="result?.defender.shipsNeeded">
       <small v-if="isBeyondCeiling(result.defender.shipsNeeded)"
         ><span class="text-success">Defender</span> would need more than
-        <span class="text-success">10,000</span> ships to win.</small
+        <span class="text-success">{{ ceiling }}</span> ships to win.</small
       >
       <small v-else
         ><span class="text-success">Defender</span> would need
@@ -190,7 +190,7 @@
     <p class="col text-center mb-0" v-if="result?.attacker.shipsNeeded">
       <small v-if="isBeyondCeiling(result.attacker.shipsNeeded)"
         ><span class="text-danger">Attacker</span> would need more than
-        <span class="text-danger">10,000</span> ships to win.</small
+        <span class="text-danger">{{ ceiling }}</span> ships to win.</small
       >
       <small v-else
         ><span class="text-danger">Attacker</span> would need
@@ -234,6 +234,8 @@ const hasDefenderBonus = computed(
 // size is enough, when it is not.
 const isBeyondCeiling = (shipsNeeded: number | null | undefined) =>
   typeof shipsNeeded === "number" && shipsNeeded >= SHIPS_NEEDED_CEILING;
+
+const ceiling = (SHIPS_NEEDED_CEILING - 1).toLocaleString();
 
 // `null` means the search was abandoned - the battle was too big to walk up
 // one ship at a time. Say so, rather than quietly showing nothing.
