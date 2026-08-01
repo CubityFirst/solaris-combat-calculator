@@ -18,8 +18,14 @@
       {{ winnerName }} wins the battle!
     </p>
     <p v-for="needed of neededForOthers" class="text-warning m-0">
-      Group {{ result.groups.indexOf(needed.group) }} needed
-      {{ needed.needed }} ships to win.
+      <span v-if="needed.needed !== null">
+        Group {{ result.groups.indexOf(needed.group) }} needed
+        {{ needed.needed }} ships to win.
+      </span>
+      <span v-else class="text-secondary">
+        Group {{ result.groups.indexOf(needed.group) }} is too far behind to
+        work out how many ships it would have needed.
+      </span>
     </p>
   </div>
 </template>

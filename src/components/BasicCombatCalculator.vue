@@ -190,6 +190,12 @@
         ship(s) to win.</small
       >
     </p>
+    <p class="col text-center mb-0" v-if="shipsNeededUnknown">
+      <small class="text-secondary"
+        >This battle is too large to work out how many ships
+        {{ shipsNeededUnknown }} would have needed.</small
+      >
+    </p>
   </div>
 </template>
 
@@ -213,6 +219,20 @@ import {
 const hasDefenderBonus = computed(
   () => game.settings.specialGalaxy.defenderBonus === "enabled",
 );
+
+// `null` means the search was abandoned - the battle was too big to walk up
+// one ship at a time. Say so, rather than quietly showing nothing.
+const shipsNeededUnknown = computed(() => {
+  if (result.value?.defender.shipsNeeded === null) {
+    return "Defender";
+  }
+
+  if (result.value?.attacker.shipsNeeded === null) {
+    return "Attacker";
+  }
+
+  return null;
+});
 
 const isInvalid = computed(() => {
   return (

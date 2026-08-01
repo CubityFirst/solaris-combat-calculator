@@ -97,17 +97,23 @@ export type DetailedCombatResult<
 };
 
 // For combat calculator etc
+//
+// `shipsNeeded` is `undefined` for the side that won - the question does not
+// arise - and `null` when the search was abandoned because the battle was too
+// large to work it out in reasonable time. See `estimateNeeded`.
+export type ShipsNeeded = number | null | undefined;
+
 export type BasicCombatResult = {
     defender: {
         shipsBefore: number;
         shipsAfter: number;
         shipsLost: number;
-        shipsNeeded: number | undefined;
+        shipsNeeded: ShipsNeeded;
     };
     attacker: {
         shipsBefore: number;
         shipsAfter: number;
         shipsLost: number;
-        shipsNeeded: number | undefined;
+        shipsNeeded: ShipsNeeded;
     };
 };

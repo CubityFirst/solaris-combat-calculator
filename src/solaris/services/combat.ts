@@ -252,7 +252,12 @@ const distributeDamage = <
     C extends CombatBaseCarrier<ID>,
 >(
     group: CombatResultGrouped<ID, P, S, C>,
+    budget?: WorkBudget,
 ): DetailedCombatResultGroup<ID, P, S, C> => {
+    // Losses are handed out one ship at a time below, so a large battle costs
+    // as much here as in the round loop.
+    spend(budget, group.shipsLost);
+
     const getShips = (obj: MO<ID, S, C>) => {
         if (obj.type === "carrier") {
             return obj.carrier.shipsAfter;
@@ -441,10 +446,12 @@ const makeResult = <
     state: CombatRoundState<ID, P, S, C>,
     originalCombatGroups: CombatGroup<ID, P, S, C>[],
     isCarrierToStarCombat: boolean,
+    budget?: WorkBudget,
 ): DetailedCombatResult<ID, P, S, C> => {
     const groups: DetailedCombatResultGroup<ID, P, S, C>[] = state.groups.map(
         (g) => {
-            return distributeDamage({
+            return distributeDamage(
+                {
                 id: g.id,
                 players: g.players,
                 star: g.star,
@@ -454,7 +461,9 @@ const makeResult = <
                 shipsLost: g.originalShips - g.ships,
                 shipsKilled: g.shipsKilled,
                 attackAgainst: g.attackAgainst,
-            });
+                },
+                budget,
+            );
         },
     );
 
@@ -487,6 +496,7 @@ const combatLoop = <
     initState: CombatRoundState<ID, P, S, C>,
     isCarrierToStarCombat: boolean,
     callback?: (st: CombatRoundState<ID, P, S, C>) => void,
+    budget?: WorkBudget,
 ): DetailedCombatResult<ID, P, S, C> => {
     let state = initState;
 
@@ -500,10 +510,14 @@ const combatLoop = <
             break;
         }
 
+        // Only the "ships needed" search passes a budget. The battle the user
+        // actually asked for is always fought to the end.
+        spend(budget, 1);
+
         state = performCombatRound(state, isCarrierToStarCombat);
     }
 
-    return makeResult(state, initState.groups, isCarrierToStarCombat);
+    return makeResult(state, initState.groups, isCarrierToStarCombat, budget);
 };
 
 const findGroupDetailed = <
@@ -520,6 +534,53 @@ const findGroupDetailed = <
     );
 };
 
+/**
+ * Work allowed for a single `estimateNeeded` call, in simulated combat rounds
+ * plus ships distributed. Chosen so the worst case is around a second.
+ *
+ * The search itself has to stay exactly as upstream wrote it - see the note on
+ * `estimateNeeded` - so the only way to stop a large battle locking the page is
+ * to stop searching. Counting work rather than watching the clock keeps the
+ * answer the same on every machine.
+ */
+const ESTIMATE_WORK_BUDGET = 600_000;
+
+type WorkBudget = { remaining: number };
+
+/** Thrown internally when an estimate runs out of budget. Never escapes. */
+class WorkBudgetExhausted extends Error {}
+
+const spend = (budget: WorkBudget | undefined, amount: number) => {
+    if (!budget) {
+        return;
+    }
+
+    budget.remaining -= amount;
+
+    if (budget.remaining <= 0) {
+        throw new WorkBudgetExhausted();
+    }
+};
+
+/**
+ * How many ships a group would have needed to win, or `null` if working that
+ * out would have taken too long.
+ *
+ * The search is upstream's, unchanged: walk up one ship at a time, re-fighting
+ * the whole battle at each step, and give up after 10,001. It cannot be
+ * replaced with a binary search, however tempting - winning is *not* monotone
+ * in ship count. In one of the recorded parity battles 179 ships win, 180 and
+ * 181 lose, and 182 wins again, because the damage clamp and the kill-rounding
+ * make the outcome jump around. A binary search returns 182 there; upstream,
+ * and this, return 179.
+ *
+ * What is new is the budget. The walk is quadratic in the size of the battle -
+ * 45 ships against 20,000 takes 92 seconds, and against a few hundred thousand
+ * it locks the page for minutes. In-game the inputs come from a real galaxy and
+ * stay small; on a web form anyone can type 231231. So the walk now gives up
+ * once it has done `ESTIMATE_WORK_BUDGET` work, and the caller reports that it
+ * could not be determined rather than showing a number that was never reached.
+ */
 const estimateNeeded = <
     ID extends Id,
     P extends CombatBasePlayer<ID>,
@@ -532,68 +593,84 @@ const estimateNeeded = <
     terminationCondition:
         | "greaterThanZeroShips"
         | "eliminateOtherGroups" = "greaterThanZeroShips",
-) => {
+): number | null => {
     const originalShips = estimateForGroup.shipsBefore;
 
     if (estimateForGroup.shipsAfter > 0) {
         return originalShips;
     }
 
+    const budget: WorkBudget = { remaining: ESTIMATE_WORK_BUDGET };
+
     let shipsNeeded = originalShips + 1;
 
-    while (true) {
-        const modifiedGroups = originalGroups.map((gr) => {
-            if (gr.id === estimateForGroup.id) {
-                const newGr = {
-                    ...gr,
-                    originalShips: shipsNeeded,
-                    ships: shipsNeeded,
-                    shipsKilled: 0,
-                };
-                if (newGr.star) {
-                    newGr.star = {
-                        ...newGr.star,
-                        ships: newGr.star.ships! + (shipsNeeded - originalShips),
+    try {
+        while (true) {
+            const modifiedGroups = originalGroups.map((gr) => {
+                if (gr.id === estimateForGroup.id) {
+                    const newGr = {
+                        ...gr,
+                        originalShips: shipsNeeded,
+                        ships: shipsNeeded,
+                        shipsKilled: 0,
                     };
+                    if (newGr.star) {
+                        newGr.star = {
+                            ...newGr.star,
+                            ships:
+                                newGr.star.ships! +
+                                (shipsNeeded - originalShips),
+                        };
+                    } else {
+                        newGr.carriers[0] = {
+                            ...newGr.carriers[0],
+                            ships:
+                                newGr.carriers[0].ships! +
+                                (shipsNeeded - originalShips),
+                        };
+                    }
+                    return newGr;
                 } else {
-                    newGr.carriers[0] = {
-                        ...newGr.carriers[0],
-                        ships:
-                            newGr.carriers[0].ships! +
-                            (shipsNeeded - originalShips),
-                    };
+                    return gr;
                 }
-                return newGr;
-            } else {
-                return gr;
+            });
+
+            const newResult = combatLoop(
+                { round: 0, groups: modifiedGroups },
+                combatResult.isCarrierToStarCombat,
+                undefined,
+                budget,
+            );
+
+            const groupInNew = newResult.groups.find(
+                (g) => g.id === estimateForGroup.id,
+            );
+
+            if (terminationCondition === "greaterThanZeroShips") {
+                if (groupInNew!.shipsAfter > 0) {
+                    break;
+                }
+            } else if (terminationCondition === "eliminateOtherGroups") {
+                const otherGroups = newResult.groups.filter(
+                    (g) => g != groupInNew!,
+                );
+                if (otherGroups.every((g) => g.shipsAfter === 0)) {
+                    break;
+                }
             }
-        });
 
-        const newResult = combatLoop(
-            { round: 0, groups: modifiedGroups },
-            combatResult.isCarrierToStarCombat,
-        );
-
-        const groupInNew = newResult.groups.find(
-            (g) => g.id === estimateForGroup.id,
-        );
-
-        if (terminationCondition === "greaterThanZeroShips") {
-            if (groupInNew!.shipsAfter > 0) {
+            if (shipsNeeded > 10000) {
                 break;
             }
-        } else if (terminationCondition === "eliminateOtherGroups") {
-            const otherGroups = newResult.groups.filter((g) => g != groupInNew!);
-            if (otherGroups.every((g) => g.shipsAfter === 0)) {
-                break;
-            }
+
+            shipsNeeded++;
+        }
+    } catch (e) {
+        if (e instanceof WorkBudgetExhausted) {
+            return null;
         }
 
-        if (shipsNeeded > 10000) {
-            break;
-        }
-
-        shipsNeeded++;
+        throw e;
     }
 
     return shipsNeeded;

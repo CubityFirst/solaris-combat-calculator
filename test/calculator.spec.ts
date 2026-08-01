@@ -239,6 +239,74 @@ describe("hand-entered players", () => {
   });
 });
 
+describe("lopsided battles do not hang", () => {
+  // 45 v 231231 used to lock the page for minutes: "ships needed" walks up one
+  // ship at a time, re-fighting the whole battle at each step, which is
+  // quadratic in the size of the battle. It now gives up once it has done a
+  // fixed amount of work and reports that it could not be determined.
+  const timed = <T>(fn: () => T): [T, number] => {
+    const started = performance.now();
+    const out = fn();
+    return [out, performance.now() - started];
+  };
+
+  it("answers the reported 45 v 231231 case quickly", () => {
+    const [result, ms] = timed(() =>
+      combatService.calculateBasic(
+        { ships: 45, weaponsLevel: 1 },
+        { ships: 231231, weaponsLevel: 1 },
+        true,
+        true,
+      ),
+    );
+
+    // The battle itself is still resolved exactly.
+    expect(result.defender.shipsAfter).toBe(0);
+    expect(result.attacker.shipsAfter).toBe(231141);
+
+    // The estimate is abandoned rather than ground out.
+    expect(result.defender.shipsNeeded).toBeNull();
+
+    // Generous next to the several minutes this used to take, but far below it.
+    expect(ms).toBeLessThan(5000);
+  });
+
+  it("stays fast when both sides are huge", () => {
+    const [result, ms] = timed(() =>
+      combatService.calculateBasic(
+        { ships: 231231, weaponsLevel: 1 },
+        { ships: 231231, weaponsLevel: 3 },
+        true,
+        true,
+      ),
+    );
+
+    expect(result.attacker.shipsAfter).toBe(77077);
+    expect(ms).toBeLessThan(5000);
+  });
+
+  it("still gives the exact answer when the battle is a normal size", () => {
+    // Unchanged by the budget: these are the numbers upstream produces.
+    expect(
+      combatService.calculateBasic(
+        { ships: 45, weaponsLevel: 1 },
+        { ships: 60, weaponsLevel: 1 },
+        true,
+        true,
+      ).attacker.shipsNeeded,
+    ).toBe(91);
+
+    expect(
+      combatService.calculateBasic(
+        { ships: 45, weaponsLevel: 1 },
+        { ships: 1000, weaponsLevel: 1 },
+        true,
+        true,
+      ).defender.shipsNeeded,
+    ).toBe(500);
+  });
+});
+
 describe("ship totals", () => {
   it("sums carriers and the star into the group's ships", () => {
     const game = defaultGame();

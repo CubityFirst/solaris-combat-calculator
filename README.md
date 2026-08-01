@@ -86,6 +86,26 @@ It is checked to be capable of failing: dropping the defender-bonus term from
 the damage clamp in `combat.ts` is caught here, while both the upstream spec and
 the hand-written tests stay green.
 
+### The one bounded calculation
+
+`estimateNeeded` — "would have needed N ships" — walks up one ship at a time,
+re-fighting the entire battle at every step, and gives up after 10,001. That is
+quadratic in the size of the battle. In-game the inputs come from a real galaxy
+and stay small; on a web form anyone can type a big number, and 45 ships against
+231,231 locked the page for minutes.
+
+It cannot be replaced with a binary search, however tempting: **winning is not
+monotone in ship count.** In one of the recorded parity battles 179 ships win,
+180 and 181 lose, and 182 wins again — the damage clamp and the kill-rounding
+make the outcome jump around. A binary search answers 182 there; upstream, and
+this, answer 179. The parity suite caught exactly that when it was tried.
+
+So the search is unchanged, and instead it is given a work budget (measured in
+simulated rounds, not wall-clock, so the answer is the same on every machine).
+Past the budget the calculator reports that the figure could not be determined
+rather than showing a number it never reached. 45 v 231,231 now returns in
+~230 ms, and battles are always resolved exactly — only the estimate is bounded.
+
 Regenerating the golden file needs an upstream checkout:
 
 ```sh
@@ -113,6 +133,8 @@ Everything that needed the galaxy, and nothing else:
   game.
 - The Calculate button is also disabled on per-group errors. Upstream leaves it
   live, which throws on e.g. a group with no objects. No result changes.
+- The "would have needed N ships" search gives up on very large battles — see
+  below. Battles are always resolved exactly; only the estimate is bounded.
 - The theme is stock Bootstrap recompiled with the Solaris palette rather than
   the game's licensed template — see [NOTICE.md](NOTICE.md).
 
