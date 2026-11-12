@@ -10,5 +10,5 @@
     "noEmit": true,
     "isolatedModules": true
   },
-  "include": ["worker/**/*.ts"]
+  "include": ["worker/**/*.ts", "cloudflare.config.ts", "wrangler.config.ts"]
 }

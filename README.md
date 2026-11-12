@@ -177,23 +177,30 @@ Everything that needed the galaxy, and nothing else:
 
 ```sh
 npm install
-npm run dev       # vite dev server
+npm run dev       # cf dev -> vite dev server (app only, no Worker)
 npm test          # combat engine tests
-npm run check     # typecheck app + worker
+npm run check     # typecheck app + worker + Cloudflare config
 npm run build     # -> dist/
-npm run worker:dev  # build, then run the Worker locally via wrangler
+npm run worker:dev  # build, then run the Worker locally (cf-wrangler dev)
 ```
 
 ## Deploying
 
 ```sh
-npm run deploy    # build + wrangler deploy
+npm run deploy    # build, cf-wrangler build, then cf deploy --prebuilt
 ```
 
-`wrangler.jsonc` claims `combat.solaris.cubityfir.st` as a custom domain. For that
-to attach, `solaris.cubityfir.st` (or `cubityfir.st`) must be a zone on the same
-Cloudflare account you deploy with — Wrangler creates the DNS record and cert on
-first deploy. Run `npx wrangler login` first if you haven't.
+The Worker is configured in `cloudflare.config.ts` (the [`cf` CLI](https://www.npmjs.com/package/cf)'s
+config format), with the asset directory and other build settings in
+`wrangler.config.ts`. There is no `wrangler.jsonc`. Because the repo uses Vite,
+`cf build` / `cf deploy` on their own would only run `vite build`; the Worker is
+built by `cf-wrangler build` and the result deployed with `cf deploy --prebuilt`,
+which is what `npm run deploy` does.
+
+`cloudflare.config.ts` claims `combat.solaris.cubityfir.st` as a custom domain. For
+that to attach, `solaris.cubityfir.st` (or `cubityfir.st`) must be a zone on the
+same Cloudflare account you deploy with — the deploy creates the DNS record and
+cert the first time. Run `npx cf auth login` first if you haven't.
 
 The Worker (`worker/index.ts`) serves the built assets, adds security headers,
 caches fingerprinted assets immutably while keeping `index.html`, `sw.js` and the

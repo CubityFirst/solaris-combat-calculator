@@ -3,3 +3,5 @@ dist/
 .wrangler/
 *.log
 .DS_Store
+# cf build output + generated types
+.cloudflare/

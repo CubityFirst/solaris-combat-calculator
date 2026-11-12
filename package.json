@@ -5,14 +5,15 @@
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "cf dev",
     "build": "vue-tsc --noEmit && vite build",
+    "build:worker": "cf-wrangler build",
     "preview": "vite preview",
     "test": "vitest run",
     "parity:generate": "vite-node scripts/generate-parity-golden.ts",
     "check": "vue-tsc --noEmit && tsc -p tsconfig.worker.json",
-    "deploy": "npm run build && npx wrangler deploy",
-    "worker:dev": "npm run build && npx wrangler dev"
+    "deploy": "npm run build && npm run build:worker && cf deploy --prebuilt",
+    "worker:dev": "npm run build && cf-wrangler dev"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "6.7.2",
@@ -20,10 +21,11 @@
     "vue": "3.5.35"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "4.20251001.0",
+    "@cloudflare/workers-types": "5.20261104.1",
     "@types/node": "24.6.2",
     "@vitejs/plugin-vue": "6.0.7",
     "@vue/test-utils": "^2.4.6",
+    "cf": "1.0.0-beta.28",
     "jsdom": "^27.0.0",
     "sass": "1.93.2",
     "typescript": "5.9.3",
@@ -31,6 +33,6 @@
     "vite-plugin-pwa": "^1.0.3",
     "vitest": "3.2.4",
     "vue-tsc": "3.3.5",
-    "wrangler": "4.42.0"
+    "wrangler": "4.158.0"
   }
 }
