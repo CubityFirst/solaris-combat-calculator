@@ -1,7 +1,7 @@
 /**
  * Cloudflare Worker in front of the built static site.
  *
- * `run_worker_first` is on in wrangler.jsonc so every request lands here first;
+ * `runWorkerFirst` is on in cloudflare.config.ts so every request lands here first;
  * the Worker delegates to the static-asset binding and decorates the response
  * with security + caching headers.
  */
