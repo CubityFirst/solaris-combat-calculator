@@ -20,7 +20,7 @@ export default defineConfig({
     },
     domains: ["combat.solaris.cubityfir.st"],
     observability: {
-      enabled: true,
+      enabled: false,
     },
     env: {
       ASSETS: bindings.assets(),
